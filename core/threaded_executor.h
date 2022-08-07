@@ -11,8 +11,9 @@
 
 namespace Core {
 
-public class ThreadedExecutor {
-private:
+public
+class ThreadedExecutor {
+ private:
   int num_threads;
   bool is_running;
   std::mutex work_queue_lock;
@@ -23,7 +24,7 @@ private:
   void work();
   void maybe_spawn_worker();
 
-public:
+ public:
   ThreadedExecutor(int num_threads);
 
   void exec(std::function<void()> to_exec) override;
@@ -31,6 +32,6 @@ public:
   void shutdown() override;
 };
 
-} // namespace Core
+}  // namespace Core
 
 #endif

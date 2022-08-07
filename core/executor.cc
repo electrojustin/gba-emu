@@ -4,4 +4,4 @@ namespace Core {
 
 std::unique<Executor> executor;
 
-} // namespace Core
+}  // namespace Core

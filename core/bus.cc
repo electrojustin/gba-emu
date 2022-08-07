@@ -14,7 +14,8 @@ std::shared_ptr<Future> Bus::execute_next_request() {
   // TODO: replace with binary search or page tables?
   std::shared_ptr<BusListener> listener = nullptr;
   for (auto curr_listener : listeners) {
-    if (curr_listener.start_addr <= request.addr && curr_listener.end_addr > request.addr) {
+    if (curr_listener.start_addr <= request.addr &&
+        curr_listener.end_addr > request.addr) {
       listener = curr_listener;
       break;
     }
@@ -24,7 +25,8 @@ std::shared_ptr<Future> Bus::execute_next_request() {
     log(LogLevel::error, "Error! Invalid address %x\n", request.addr);
     request.request_completion_future->make_available();
   } else {
-    auto read_future = listener->read_write(request.addr, request.size, request.data);
+    auto read_future =
+        listener->read_write(request.addr, request.size, request.data);
     read_future->add_listener([=, &clock, &this]() {
       // Make the data available on the next falling edge.
       clock->register_falling_edge_trigger([=]() {
@@ -32,12 +34,14 @@ std::shared_ptr<Future> Bus::execute_next_request() {
         return Future::immediate_future();
       });
 
-      // Note that we immediately start the next request to support burst mode transfers.
+      // Note that we immediately start the next request to support burst mode
+      // transfers.
       this->lock.lock();
       int num_queued_requests = bus_requests.size();
       this->lock.unlock();
       if (num_queued_requests)
-        clock->register_falling_edge_trigger(std::bind(Bus::execute_next_request, this));
+        clock->register_falling_edge_trigger(
+            std::bind(Bus::execute_next_request, this));
     });
   }
 
@@ -48,7 +52,10 @@ void Bus::register_listener(std::shared_ptr<BusListener> listener) {
   listeners.emplace_back(listener);
 }
 
-std::shared_ptr<Future> Bus::request(uint64_t addr, ReadWrite dir, DataSize size, std::shared_ptr<uint64_t> data) {
+std::shared_ptr<Future> Bus::request(uint64_t addr,
+                                     ReadWrite dir,
+                                     DataSize size,
+                                     std::shared_ptr<uint64_t> data) {
   BusRequest req;
 
   req.addr = addr;
@@ -62,9 +69,10 @@ std::shared_ptr<Future> Bus::request(uint64_t addr, ReadWrite dir, DataSize size
   lock.unlock();
 
   if (start_requests)
-    clock->register_falling_edge_trigger(std::bind(Bus::execute_next_request, this));
+    clock->register_falling_edge_trigger(
+        std::bind(Bus::execute_next_request, this));
 
   return req.request_completion_future;
 }
 
-} // namespace Core
+}  // namespace Core

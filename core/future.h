@@ -4,15 +4,16 @@
 
 namespace Core {
 
-public class Future {
-private:
-  std::mutex lock;   
+public
+class Future {
+ private:
+  std::mutex lock;
   std::queue<std::function<void()>> listeners;
   bool is_available;
 
   static std::shared_ptr<Future> immediate = nullptr;
 
-public:
+ public:
   Future();
   Future(Future& future) = delete;
   Future(Future&& future);
@@ -24,4 +25,4 @@ public:
   static std::shared_ptr<Future> immediate_future();
 }
 
-} // namespace Core
+}  // namespace Core

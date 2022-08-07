@@ -18,7 +18,7 @@ void Future::make_available() {
   lock.lock();
 
   is_available = true;
-  while(!listeners.empty())
+  while (!listeners.empty())
     executor->exec(std::move(listeners.pop_front()));
 
   lock.unlock();
@@ -45,4 +45,4 @@ static std::shared_ptr<Future> Future::immediate_future() {
   return immediate;
 }
 
-} // namespace Core
+}  // namespace Core

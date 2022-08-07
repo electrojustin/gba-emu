@@ -56,4 +56,4 @@ void ThreadedExecutor::shutdown() {
   is_running = false;
 }
 
-} // namespace Core
+}  // namespace Core

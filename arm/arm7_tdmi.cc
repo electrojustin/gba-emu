@@ -22,17 +22,15 @@ int get_trailing_zeros(uint32_t x) {
   return ret;
 }
 
-} // namespace
+}  // namespace
 
-#define BOOLEAN_CPSR_FLAG(name, bit_num) \
-bool ARM7TDMI::get_name() { \
-  return cpsr & (1 << bit_num); \
-} \
-\
-void ARM7TDMI::set_name(bool val) { \
-  cpsr &= ~(1 << bit_num); \
-  cpsr |= val << bit_num; \
-}
+#define BOOLEAN_CPSR_FLAG(name, bit_num)                      \
+  bool ARM7TDMI::get_name() { return cpsr & (1 << bit_num); } \
+                                                              \
+  void ARM7TDMI::set_name(bool val) {                         \
+    cpsr &= ~(1 << bit_num);                                  \
+    cpsr |= val << bit_num;                                   \
+  }
 
 int ARM7TDMI::get_ring() {
   return cpsr & 0x1F;
@@ -108,45 +106,44 @@ BOOLEAN_CPSR_FLAG(carry, 29)
 BOOLEAN_CPSR_FLAG(zero, 30)
 BOOLEAN_CPSR_FLAG(negative, 31)
 
-std::shared_ptr<Core::Future> ARM7TDMI::fetch(std::shared_ptr<Core::Future> bus_activity_future) {
+std::shared_ptr<Core::Future> ARM7TDMI::fetch(
+    std::shared_ptr<Core::Future> bus_activity_future) {
   auto data = std::make_shared<uint64_t> data;
-  Core::DataSize data_size = get_thumb() ? Core::DataSize::Word : Core::DataSize::DoubleWord;
-  auto ret = instruction_bus->request(program_counter,
-                                      Core::ReadWrite::read,
-                                      data_size,
-                                      data,
-                                      bus_activity_future);
+  Core::DataSize data_size =
+      get_thumb() ? Core::DataSize::Word : Core::DataSize::DoubleWord;
+  auto ret = instruction_bus->request(program_counter, Core::ReadWrite::read,
+                                      data_size, data, bus_activity_future);
 
   ret->add_listener((=, &this)[] {
     if (data_size == Core::DataSize::Word) {
       encoded_insn_buf = *data & 0xFFFF;
     } else {
       encoded_insn_buf = *data & 0xFFFFFFFF;
-  });
+    });
 
-  program_counter += data_size == Core::DataSize::Word ? 2 : 4;
+    program_counter += data_size == Core::DataSize::Word ? 2 : 4;
 
-  return ret;
+    return ret;
 }
 
 void ARM7TDMI::decode() {
-  if (encoded_insn)
-    decoded_insn_buf = get_decoded_insn(*this, encoded_insn);
+    if (encoded_insn)
+      decoded_insn_buf = get_decoded_insn(*this, encoded_insn);
 
-  encoded_insn = encoded_insn_buf;
+    encoded_insn = encoded_insn_buf;
 }
 
 std::shared_ptr<Core::Future> ARM7TDMI::exec() {
-  std::shared_ptr<Core::Future> ret = nullptr;
-  if (decoded_insn) {
-    ret = decoded_insn->exec();
-  } else {
-    ret = Core::Future::immediate_future();
-  }
+    std::shared_ptr<Core::Future> ret = nullptr;
+    if (decoded_insn) {
+      ret = decoded_insn->exec();
+    } else {
+      ret = Core::Future::immediate_future();
+    }
 
-  decoded_insn = decoded_insn_buf;
+    decoded_insn = decoded_insn_buf;
 
-  return ret;
+    return ret;
 }
 
 void ARM7TDMI::reset() {
@@ -156,4 +153,4 @@ void ARM7TDMI::reset() {
   vtor = 0;
 }
 
-} // namespace ARM
+}  // namespace ARM

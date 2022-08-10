@@ -24,7 +24,10 @@ std::shared_ptr<Future> Bus::execute_next_request() {
   if (!listener) {
     log(LogLevel::error, "Error! Invalid address %x\n", request.addr);
 
-    // The GBA doesn't have an MMU, so invalid address reads won't fault, they'll read the open bus, which will likely contain the last value on the data line. Some games actually rely on this behavior, which is why this is a non-fatal error.
+    // The GBA doesn't have an MMU, so invalid address reads won't fault,
+    // they'll read the open bus, which will likely contain the last value on
+    // the data line. Some games actually rely on this behavior, which is why
+    // this is a non-fatal error.
     *request.data = last_data;
     request.request_completion_future->make_available();
   } else {
@@ -33,7 +36,8 @@ std::shared_ptr<Future> Bus::execute_next_request() {
     read_write_future->add_listener([=, &clock, &this]() {
       last_data = *request.data;
 
-      // Make the data available on the next falling edge and then block the rising edge until the requester processes the data.
+      // Make the data available on the next falling edge and then block the
+      // rising edge until the requester processes the data.
       clock->register_falling_edge_trigger([=]() {
         request.request_completion_future->make_available();
         return request.bus_activity_future;
@@ -57,11 +61,12 @@ void Bus::register_listener(std::shared_ptr<BusListener> listener) {
   listeners.emplace_back(listener);
 }
 
-std::shared_ptr<Future> Bus::request(uint64_t addr,
-                                     ReadWrite dir,
-                                     DataSize size,
-                                     std::shared_ptr<uint64_t> data,
-                                     std::shared_ptr<Future> bus_activity_future) {
+std::shared_ptr<Future> Bus::request(
+    uint64_t addr,
+    ReadWrite dir,
+    DataSize size,
+    std::shared_ptr<uint64_t> data,
+    std::shared_ptr<Future> bus_activity_future) {
   BusRequest req;
 
   req.addr = addr;

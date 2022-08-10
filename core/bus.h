@@ -60,7 +60,9 @@ class Bus {
  public:
   void register_listener(std::shared_ptr<BusListener> listener);
 
-  // Note that we pass in a bus activity future. This is because we need to know when the requester is done with the bus information so we can move on to the next clock cycle.
+  // Note that we pass in a bus activity future. This is because we need to know
+  // when the requester is done with the bus information so we can move on to
+  // the next clock cycle.
   std::shared_ptr<Future> request(uint64_t addr,
                                   ReadWrite dir,
                                   DataSize size,
@@ -68,6 +70,6 @@ class Bus {
                                   std::shared_ptr<Future> bus_activity_future);
 };
 
-} // namespace Core
+}  // namespace Core
 
 #endif

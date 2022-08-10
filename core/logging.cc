@@ -26,4 +26,4 @@ void set_log_level(LogLevel level) {
   curr_level = level;
 }
 
-} // namespace Core
+}  // namespace Core

@@ -16,6 +16,6 @@ void log(LogLevel level, const char* format, ...);
 
 void set_log_level(LogLevel level);
 
-} // namespace Core
+}  // namespace Core
 
 #endif

@@ -1,6 +1,6 @@
+#include "core/memory.h"
 #include "core/clock.h"
 #include "core/logging.h"
-#include "core/memory.h"
 
 namespace Core {
 
@@ -46,17 +46,17 @@ void MemoryModule::write(uint64_t addr, uint64_t val, DataSize size) {
 }
 
 MemoryModule::MemoryModule(uint64_t start_addr,
-               uint64_t end_addr,
-               bool is_read_only,
-               DataSize max_data_width,
-               int byte_cycles,
-               int word_cycles,
-               int dword_cycles,
-               int qword_cycles,
-               int sequential_byte_cycles,
-               int sequential_word_cycles,
-               int sequential_dword_cycles,
-               int sequential_qword_cycles) {
+                           uint64_t end_addr,
+                           bool is_read_only,
+                           DataSize max_data_width,
+                           int byte_cycles,
+                           int word_cycles,
+                           int dword_cycles,
+                           int qword_cycles,
+                           int sequential_byte_cycles,
+                           int sequential_word_cycles,
+                           int sequential_dword_cycles,
+                           int sequential_qword_cycles) {
   this->start_addr = start_addr;
   this->end_addr = end_addr;
   backing_memory = (uint8_t*)malloc(end_addr - start_addr);
@@ -77,10 +77,11 @@ MemoryModule::~MemoryModule() {
   free(backing_memory);
 }
 
-std::shared_ptr<Future> MemoryModule::read_write(uint64_t addr,
-                                                 ReadWrite dir,
-                                                 DataSize size,
-                                                 std::shared_ptr<uint64_t> data) {
+std::shared_ptr<Future> MemoryModule::read_write(
+    uint64_t addr,
+    ReadWrite dir,
+    DataSize size,
+    std::shared_ptr<uint64_t> data) {
   auto ret = std::make_shared<Future>();
   int cycles = 0;
 
@@ -125,21 +126,23 @@ std::shared_ptr<Future> MemoryModule::read_write(uint64_t addr,
     }
   }
 
-  clock->register_rising_edge_listener([=]() {
-    if (dir == ReadWrite::read) {
-      *data = read(addr, size);
-    } else {
-      write(addr, *data, size);
-    }
+  clock->register_rising_edge_listener(
+      [=]() {
+        if (dir == ReadWrite::read) {
+          *data = read(addr, size);
+        } else {
+          write(addr, *data, size);
+        }
 
-    last_addr = addr;
-    size = size;
+        last_addr = addr;
+        size = size;
 
-    ret->make_available();
-    return Futures::immediate_future();
-  }, cycles - 1);
+        ret->make_available();
+        return Futures::immediate_future();
+      },
+      cycles - 1);
 
   return ret;
 }
 
-} // namespace Core
+}  // namespace Core

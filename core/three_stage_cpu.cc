@@ -28,4 +28,4 @@ void ThreeStageCPU::boot(uint64_t init_program_counter) {
   }
 }
 
-} // namespace Core
+}  // namespace Core

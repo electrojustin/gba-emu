@@ -1,5 +1,5 @@
-#include <memory>
 #include <stdint.h>
+#include <memory>
 
 #include "core/bus.h"
 #include "core/clock.h"
@@ -10,8 +10,9 @@
 
 namespace Core {
 
-public class MemoryModule : public BusListener {
-private:
+public
+class MemoryModule : public BusListener {
+ private:
   uint8_t* backing_memory;
 
   uint64_t last_addr = 0;
@@ -36,7 +37,7 @@ private:
   uint64_t read(uint64_t addr, DataSize size);
   void write(uint64_t addr, uint64_t val, DataSize size);
 
-public:
+ public:
   MemoryModule(uint64_t start_addr,
                uint64_t end_addr,
                bool is_read_only,
@@ -58,6 +59,6 @@ public:
                                      std::shared_ptr<uint64_t> data) override;
 }
 
-} // namespace Core
+}  // namespace Core
 
 #endif

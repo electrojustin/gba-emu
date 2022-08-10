@@ -11,10 +11,6 @@ namespace Core {
 public
 class ThreeStageCPU {
  private:
-  uint64_t program_counter;
-
-  bool is_running = false;
-
   void cycle();
 
   // Fetch is expected to return a future that is made available when the
@@ -27,7 +23,7 @@ class ThreeStageCPU {
   virtual std::shared_ptr<Future> exec() = 0;
 
  public:
-  void boot(uint64_t init_program_counter);
+  virtual void reset() = 0;
 }
 
 }  // namespace Core

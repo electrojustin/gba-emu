@@ -85,9 +85,6 @@ std::shared_ptr<Future> MemoryModule::read_write(
   auto ret = std::make_shared<Future>();
   int cycles = 0;
 
-  if (size > max_data_width)
-    size = max_data_width;
-
   if (addr == last_addr + last_size) {
     switch (size) {
       case DataSize::Byte:
@@ -125,6 +122,10 @@ std::shared_ptr<Future> MemoryModule::read_write(
         break;
     }
   }
+
+  // Simulate a double, quadruple, or octuple access if we exceed the bus width
+  if (size > max_data_width)
+    cycles = cycles << (size - max_data_width);
 
   clock->register_rising_edge_listener(
       [=]() {

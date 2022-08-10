@@ -18,14 +18,4 @@ void ThreeStageCPU::cycle() {
   });
 }
 
-void ThreeStageCPU::boot(uint64_t init_program_counter) {
-  if (!is_running) {
-    program_counter = init_program_counter;
-    is_running = true;
-    cycle();
-  } else {
-    log(LogLevel::fatal, "Error! Attempted to boot already running CPU!\n");
-  }
-}
-
 }  // namespace Core

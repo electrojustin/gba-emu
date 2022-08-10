@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <memory>
+#include <mutex>
 
 #include "arm/decoded_insn.h"
 #include "core/bus.h"
@@ -24,24 +25,55 @@ enum ARMCondition {
   SignedGreaterOrEqual,
   SignedLess,
   SignedGreater,
-  SignedLessOrEqual
+  SignedLessOrEqual,
+  Never,
+};
+
+enum ARMMode {
+  User = 0b10000,
+  FIQ = 0b10001,
+  IRQ = 0b10010,
+  SVC = 0b10011,
+  Abort = 0b10111,
+  Undef = 0b11011,
+  System = 0b11111,
+};
+
+enum ARMInterruptType {
+  Reset = 0,
+  UndefinedInsn,
+  Software,
+  PrefetchAbort,
+  DataAbort,
+  Slow,
+  Fast,
 };
 
 public
 class ARM7TDMI : public Core::ThreeStageCPU {
  private:
-  // Register definitions
-  uint32_t registers[16] = {0};
-  uint32_t& stack_pointer = registers[13];
-  uint32_t& link_register = registers[14];
-  uint32_t& program_counter = registers[15];
+  // Register backings
+  uint32_t r0_r7[8];
+  uint32_t r8_r12[5];
+  uint32_t r8_r12_fiq[5];
+  uint32_t r13, r13_svc, r13_abt, r13_und, r13_irq, r13_fiq;
+  uint32_t r14, r14_svc, r14_abt, r14_und, r14_irq, r14_fiq;
+  uint32_t r15;
   uint32_t cpsr = 0;
+  uint32_t spsr_svc, spsr_abt, spsr_und, spsr_irq, spsr_fiq = 0;
   uint32_t vtor = 0;
 
-  // Helper functions for getting and setting bits in CPSR, the ARM equivalent
+  // Helper functions to get the right register for the right ring.
+  uint32_t& access_reg(int index);
+  uint32_t& access_spsr();
+  uint32_t& access_pc() { return access_reg(15); }
+  uint32_t& access_link() { return access_reg(14); }
+  uint32_t access_sp() { return access_reg(13); }
+
+  // Helper functions for getting and setting bits in CPSR, the ARM equivalent.
   // of "flags".
-  int get_ring();  // Should always be 0 for GBA
-  void set_ring(int ring);
+  ARMMode get_mode();
+  void set_mode(ARMMode mode);
   bool get_thumb();
   void set_thumb(bool val);
   bool get_fast_interrupt_disable();
@@ -89,6 +121,8 @@ class ARM7TDMI : public Core::ThreeStageCPU {
   std::shared_ptr<DecodedInsn> decoded_insn = nullptr;
   std::shared_ptr<DecodedInsn> decoded_insn_buf = nullptr;
 
+  std::atomic_bool is_interrupting = false;
+
   friend class DecodedInsn;
 
   std::shared_ptr<Core::Future> fetch(
@@ -96,7 +130,11 @@ class ARM7TDMI : public Core::ThreeStageCPU {
   void decode() override;
   std::shared_ptr<Core::Future> exec() override;
 
+  void flush_pipeline();
+
  public:
+  void interrupt(ARMInterruptType type);
+
   void reset() override;
 }
 

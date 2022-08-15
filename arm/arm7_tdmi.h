@@ -26,6 +26,7 @@ enum ARMCondition {
   SignedLess,
   SignedGreater,
   SignedLessOrEqual,
+  Always,
   Never,
 };
 

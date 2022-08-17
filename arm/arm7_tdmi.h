@@ -133,8 +133,12 @@ class ARM7TDMI : public Core::ThreeStageCPU {
 
   void flush_pipeline();
 
- public:
+  ARMInterruptType interrupt_type;
+
+public:
   void interrupt(ARMInterruptType type);
+
+  void process_interrupt() override;
 
   void reset() override;
 }

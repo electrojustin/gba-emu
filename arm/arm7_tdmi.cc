@@ -219,35 +219,30 @@ void ARM7TDMI::flush_pipeline() {
 }
 
 void ARM7TDMI::interrupt(ARMInterruptType type) {
-    // Halt processor until we load up the new program counter
-    auto interrupt_wait_future = std::make_shared<Core::Future>();
-    wait_future_lock.lock();
-    wait_future = interrupt_wait_future;
-    wait_future_lock.unlock();
+    this->interrupt_type = interrupt_type;
+}
 
-    is_interrupting = true;
-
-    Core::clock->register_rising_edge_listener([=, &this]() {
+void ARM7TDMI::process_interrupt() {
       // Change mode appropriately
-      switch (type) {
-        case ARMInterruptType::Reset:
-        case ARMInterruptType::Software this->set_mode(ARMMode::SVC); break;
-            case ARMInterruptType::UndefinedInsn:
-          this->set_mode(ARMMode::Undef);
-          break;
-        case ARMInterruptType::PrefetchAbort:
-        case ARMInterruptType::DataAbort:
-          this->set_mode(ARMMode::Abort);
-          break;
-        case ARMInterruptType::Slow:
-          this->set_mode(ARMMode::IQR);
-          break;
-        case ARMInterruptType::Fast:
-          this->set_mode(ARMMode::FIQ);
-          break;
-        default:
-          log(LogLevel::fatal, "Invalid interrupt type!\n");
-          break;
+      switch (interrupt_type) {
+      case ARMInterruptType::Reset:
+      case ARMInterruptType::Software this->set_mode(ARMMode::SVC); break;
+          case ARMInterruptType::UndefinedInsn:
+        this->set_mode(ARMMode::Undef);
+        break;
+      case ARMInterruptType::PrefetchAbort:
+      case ARMInterruptType::DataAbort:
+        this->set_mode(ARMMode::Abort);
+        break;
+      case ARMInterruptType::Slow:
+        this->set_mode(ARMMode::IQR);
+        break;
+      case ARMInterruptType::Fast:
+        this->set_mode(ARMMode::FIQ);
+        break;
+      default:
+        log(LogLevel::fatal, "Invalid interrupt type!\n");
+        break;
       }
 
       // Save return register
@@ -260,19 +255,16 @@ void ARM7TDMI::interrupt(ARMInterruptType type) {
       this->flush_pipeline();
 
       auto new_program_counter = std::make_shared<uint64_t>();
+      exec_bus_activity_future = std::make_shared<Core::Future>();
       auto read_future = this->instruction_bus->request(
-          vtor + type * 4, Core::ReadWrite::read, Core::DataSize::DoubleWord,
-          new_program_counter, interrupt_wait_future);
-      read_future->add_listener([=, &this]() {
+          vtor + interrupt_type * 4, Core::ReadWrite::read,
+          Core::DataSize::DoubleWord, new_program_counter,
+          exec_bus_activity_future);
+      read_future->register_listener([=, &this]() {
+        is_interrupting = false;
         this->access_pc() = *new_program_counter;
-        this->is_interrupting = false;
-        interrupt_wait_future->make_available();
-
-        return Core::Future::immediate_future();
+        cycle();
       });
-
-      return Core::Future::immediate_future();
-    });
 }
 
 void ARM7TDMI::reset() {

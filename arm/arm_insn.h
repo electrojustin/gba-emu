@@ -10,7 +10,7 @@ namespace ARM {
 
 public
 class ARMInsn : public DecodedInsn {
- private:
+protected:
   virtual std::shared_ptr<Core::Future> internal_exec() = 0;
 
  public:

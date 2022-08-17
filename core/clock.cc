@@ -4,8 +4,6 @@
 
 namespace Core {
 
-std::unique_ptr<Clock> clock;
-
 std::shared_ptr<Future> Clock::trigger_edge(
     std::queue<std::function<std::shared_ptr<Future>()>>& listeners) {
   auto ret = std::make_shared<Future>();

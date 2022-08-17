@@ -17,10 +17,10 @@ enum ReadWrite {
 };
 
 enum DataSize {
-  Byte,
-  Word,
-  DoubleWord,
-  QuadWord,
+  Byte = 0,
+  Word = 2,
+  DoubleWord = 4,
+  QuadWord = 8,
 };
 
 struct BusRequest {
@@ -50,12 +50,11 @@ class BusListener {
 public
 class Bus {
  private:
-  uint64_t last_data = 0;
-  std::mutex lock;
-  std::vector<std::shared_ptr<BusListener>> listeners;
-  std::queue<BusRequest> bus_requests;
+   uint64_t last_data = 0;
+   std::vector<std::shared_ptr<BusListener>> listeners;
+   std::queue<BusRequest> bus_requests;
 
-  std::shared_ptr<Future> execute_next_request();
+   std::shared_ptr<Future> execute_next_request();
 
  public:
   void register_listener(std::shared_ptr<BusListener> listener);
@@ -68,6 +67,9 @@ class Bus {
                                   DataSize size,
                                   std::shared_ptr<uint64_t> data,
                                   std::shared_ptr<Future> bus_activity_future);
+
+  // Submit multiple requests that are guaranteed to happen atomically.
+  void request_multiple(std::queue<BusRequest> requests);
 };
 
 }  // namespace Core

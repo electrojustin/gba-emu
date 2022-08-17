@@ -73,6 +73,7 @@ std::shared_ptr<Future> Bus::request(
   req.dir = dir;
   req.size = size;
   req.data = data;
+  req.request_completion_future = std::make_shared<Future>();
   req.bus_activity_future = bus_activity_future;
 
   lock.lock();
@@ -85,6 +86,13 @@ std::shared_ptr<Future> Bus::request(
         std::bind(Bus::execute_next_request, this));
 
   return req.request_completion_future;
+}
+
+void Bus::request_multiple(std::queue<BusRequest> requests) {
+  lock.lock();
+  while (!requests.empty())
+    bus_request.push_back(requests.pop());
+  lock.unlock();
 }
 
 }  // namespace Core

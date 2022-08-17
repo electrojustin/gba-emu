@@ -1,6 +1,8 @@
+#include <atomic>
 #include <memory>
 #include <mutex>
 
+#include "core/clock.h"
 #include "core/future.h"
 
 #ifndef CORE_THREE_STAGE_CPU_H
@@ -11,8 +13,14 @@ namespace Core {
 // Framework for a generic three stage CPU pipeline.
 public
 class ThreeStageCPU {
- private:
+protected:
   void cycle();
+
+  virtual void process_interrupt() = 0;
+
+  // This future helps us make sure we don't start the next clock cycle until
+  // after we start the next fetch.
+  std::shared_ptr<Future> exec_bus_activity_future = nullptr;
 
   // Fetch is expected to return a future that is made available when the
   // instruction fetch is complete. The bus completion future will be made
@@ -25,12 +33,11 @@ class ThreeStageCPU {
   virtual std::shared_ptr<Future> exec() = 0;
 
  public:
-  // This provides us a way to temporarily halt the processor, whether for an
-  // interrupt or a DMA transfer.
-  std::mutex wait_future_lock;
-  std::shared_ptr<Future> wait_future = Future::immediate_future();
+   atomic_bool wait;
 
-  virtual void reset() = 0;
+   atomic_bool is_interrupting;
+
+   virtual void reset() = 0;
 }
 
 }  // namespace Core

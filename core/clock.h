@@ -46,8 +46,6 @@ class Clock {
   std::shared_ptr<Future> falling_edge();
 };
 
-extern std::unique_ptr<Clock> clock;
-
 }  // namespace Core
 
 #endif

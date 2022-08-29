@@ -30,6 +30,7 @@ struct BusRequest {
   std::shared_ptr<uint64_t> data;
   std::shared_ptr<Future> request_completion_future;
   std::shared_ptr<Future> bus_activity_future;
+  std::shared_ptr<Clock> wait_clock;
 };
 
 // BusListeners should operate on the rising edge.
@@ -43,7 +44,8 @@ class BusListener {
       uint64_t addr,
       ReadWrite dir,
       DataSize size,
-      std::shared_ptr<uint64_t> data) = 0;
+      std::shared_ptr<uint64_t> data,
+      std::shared_ptr<Clock> wait_clock) = 0;
 };
 
 // Buses should operate on the falling edge.
@@ -66,10 +68,13 @@ class Bus {
                                   ReadWrite dir,
                                   DataSize size,
                                   std::shared_ptr<uint64_t> data,
-                                  std::shared_ptr<Future> bus_activity_future);
+                                  std::shared_ptr<Future> bus_activity_future,
+                                  std::shared_ptr<Clock> wait_clock);
 
   // Submit multiple requests that are guaranteed to happen atomically.
   void request_multiple(std::queue<BusRequest> requests);
+
+  std::shared_ptr<Clock> bus_clock;
 };
 
 }  // namespace Core

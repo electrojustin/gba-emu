@@ -33,12 +33,12 @@ std::shared_ptr<Future> Bus::execute_next_request() {
   } else {
     auto read_write_future =
         listener->read_write(request.addr, request.size, request.data);
-    read_write_future->add_listener([=, &clock, &this]() {
+    read_write_future->add_listener([=, &this]() {
       last_data = *request.data;
 
       // Make the data available on the next falling edge and then block the
       // rising edge until the requester processes the data.
-      clock->register_falling_edge_trigger([=]() {
+      request.wait_clock->register_falling_edge_trigger([=]() {
         request.request_completion_future->make_available();
         return request.bus_activity_future;
       });
@@ -49,7 +49,7 @@ std::shared_ptr<Future> Bus::execute_next_request() {
       int num_queued_requests = bus_requests.size();
       this->lock.unlock();
       if (num_queued_requests)
-        clock->register_falling_edge_trigger(
+        bus_clock->register_falling_edge_trigger(
             std::bind(Bus::execute_next_request, this));
     });
   }
@@ -66,7 +66,8 @@ std::shared_ptr<Future> Bus::request(
     ReadWrite dir,
     DataSize size,
     std::shared_ptr<uint64_t> data,
-    std::shared_ptr<Future> bus_activity_future) {
+    std::shared_ptr<Future> bus_activity_future,
+    std::shared_ptr<Clock> wait_clock) {
   BusRequest req;
 
   req.addr = addr;
@@ -75,6 +76,7 @@ std::shared_ptr<Future> Bus::request(
   req.data = data;
   req.request_completion_future = std::make_shared<Future>();
   req.bus_activity_future = bus_activity_future;
+  req.wait_clock = wait_clock;
 
   lock.lock();
   bus_requests.push_back(req);
@@ -82,7 +84,7 @@ std::shared_ptr<Future> Bus::request(
   lock.unlock();
 
   if (start_requests)
-    clock->register_falling_edge_trigger(
+    bus_clock->register_falling_edge_trigger(
         std::bind(Bus::execute_next_request, this));
 
   return req.request_completion_future;
@@ -93,6 +95,10 @@ void Bus::request_multiple(std::queue<BusRequest> requests) {
   while (!requests.empty())
     bus_request.push_back(requests.pop());
   lock.unlock();
+
+  if (start_requests)
+    bus_clock->register_falling_edge_trigger(
+        std::bind(Bus::execute_next_request, this));
 }
 
 }  // namespace Core

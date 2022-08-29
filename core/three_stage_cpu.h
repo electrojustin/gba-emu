@@ -33,11 +33,11 @@ protected:
   virtual std::shared_ptr<Future> exec() = 0;
 
  public:
-   atomic_bool wait;
-
-   atomic_bool is_interrupting;
+   atomic_bool is_interrupting = false;
 
    virtual void reset() = 0;
+
+   std::shared_ptr<Clock> cpu_clock = nullptr;
 }
 
 }  // namespace Core

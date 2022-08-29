@@ -122,8 +122,6 @@ class ARM7TDMI : public Core::ThreeStageCPU {
   std::shared_ptr<DecodedInsn> decoded_insn = nullptr;
   std::shared_ptr<DecodedInsn> decoded_insn_buf = nullptr;
 
-  std::atomic_bool is_interrupting = false;
-
   friend class DecodedInsn;
 
   std::shared_ptr<Core::Future> fetch(
@@ -135,12 +133,20 @@ class ARM7TDMI : public Core::ThreeStageCPU {
 
   ARMInterruptType interrupt_type;
 
-public:
+  std::shared_ptr<Core::Future> parent_clock;
+  std::shared_ptr<Core::Future> on_parent_falling_edge();
+  std::shared_ptr<Core::Future> on_parent_rising_edge();
+
+ public:
+  ARM7TDMI(std::shared_ptr<Core::Clock> parent_clock);
+
   void interrupt(ARMInterruptType type);
 
   void process_interrupt() override;
 
   void reset() override;
+
+  std::atomic_bool wait = false;
 }
 
 }  // namespace ARM

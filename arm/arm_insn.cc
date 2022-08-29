@@ -81,7 +81,7 @@ class BranchInsn : public ARMInsn {
   int32_t offset;
   bool should_link;
 
-protected:
+ protected:
   // Note that the documentation says there's an additional delay of 1
   // sequential and 1 non-sequential memory reads. We don't simulate that here
   // directly because the delay is actually due to the pipeline flush.
@@ -93,7 +93,7 @@ protected:
     return Core::Future::immediate_future();
   }
 
-public:
+ public:
   const static bool is_parseable(uint32_t encoded_insn) override {
     return ((encoded_insn >> 25) & 0x07) == 0b101;
   }
@@ -116,7 +116,7 @@ public:
 
 public
 class SoftwareInterruptInsn : public ARMInsn {
-protected:
+ protected:
   // SWI has a similar instruction timing thing going on as B/BL. It's the
   // pipeline flush that causes the delay.
   std::shared_ptr<Core::Future> internal_exec() {
@@ -124,7 +124,7 @@ protected:
     return Core::Future::immediate_future();
   }
 
-public:
+ public:
   const static bool is_parseable(uint32_t encoded_insn) {
     return ((encoded_insn >> 24) & 0x0F) == 0b1111;
   }
@@ -296,7 +296,7 @@ class ALUInsn : public ARMInsn {
     }
   }
 
-protected:
+ protected:
   std::shared_ptr<Core::Future> internal_exec() {
     int opcode = (encoded_insn >> 21) & 0x0F;
 
@@ -382,13 +382,13 @@ protected:
 public
 class MulInsn : ARMInsn {
  private:
-   bool handle_flags() { return encoded_insn & 0x00100000; }
+  bool handle_flags() { return encoded_insn & 0x00100000; }
 
-   void _mul(uint64_t op1, uint64_t op2, uint32_t &dst) {
-     uint64_t result = op1 * op2;
-     if (handle_flags())
-       set_negative_zero_flags(result);
-     dst = result;
+  void _mul(uint64_t op1, uint64_t op2, uint32_t& dst) {
+    uint64_t result = op1 * op2;
+    if (handle_flags())
+      set_negative_zero_flags(result);
+    dst = result;
   }
 
   void _mla(uint64_t op1, uint64_t op2, uint64_t op3, uint32_t& dst) {
@@ -444,7 +444,7 @@ class MulInsn : ARMInsn {
     dst_lo = result;
   }
 
-protected:
+ protected:
   std::shared_ptr<Core::Future> internal_exec() {
     uint32_t& dst_hi = processor.access_reg((encoded_insn >> 16) & 0x0F);
     uint32_t& dst_lo = processor.access_reg((encoded_insn >> 12) & 0x0F);
@@ -484,7 +484,7 @@ protected:
 
     std::shared_ptr<Core::Future> ret = std::make_shared<Core::Future>();
 
-    Core::clock->register_falling_edge_listener(
+    cpu_clock->register_falling_edge_listener(
         [=, &this]() {
           switch (opcode) {
             case 0:
@@ -519,7 +519,7 @@ protected:
     return ret;
   }
 
-public:
+ public:
   const static bool is_parseable(uint32_t encoded_insn) override {
     return (((encoded_insn >> 24) & 0x0F) == 0b0000) &&
            (((encoded_insn >> 4) & 0x0F) == 0b1001);
@@ -534,7 +534,7 @@ public:
 
 public
 class LoadStoreInsn : public ARMInsn {
-private:
+ private:
   std::queue<int> regs;
   bool multiple_transfers;
   int base_reg_idx;
@@ -580,21 +580,21 @@ private:
       if (uses_offset_reg) {
         offset = processor.access_reg(offset_reg_idx);
         switch (shift_type) {
-        case 0:
-          offset <<= shift_val;
-          break;
-        case 1:
-          offset >>= shift_val;
-          break;
-        case 2:
-          offset = Core::arithmetic_right_shift<uint32_t>(ret, shift_val);
-          break;
-        case 3:
-          offset = Core::rotate_right<uint32_t>(ret, shift_val);
-          break;
-        default:
-          log(LogLevel::fatal, "Error! Invalid shift value\n");
-          break;
+          case 0:
+            offset <<= shift_val;
+            break;
+          case 1:
+            offset >>= shift_val;
+            break;
+          case 2:
+            offset = Core::arithmetic_right_shift<uint32_t>(ret, shift_val);
+            break;
+          case 3:
+            offset = Core::rotate_right<uint32_t>(ret, shift_val);
+            break;
+          default:
+            log(LogLevel::fatal, "Error! Invalid shift value\n");
+            break;
         }
       } else {
         offset = offset_immediate;
@@ -642,10 +642,9 @@ private:
       bus_activity_future = std::make_shared<Core::Future>();
     }
 
-    auto bus_activity_future = std::make_shared<Core::Future>();
     auto bus_req_future =
-        processor.data_bus->request(addr, dir, size, data, bus_activity_future);
-    bus_req_future->add_listener([=, &this]() {
+        processor.data_bus->request(addr, dir, size, data, bus_activity_future, cpu_clock);
+    bus_req_future->register_listener([=, &this]() {
       if (dir == Core::ReadWrite::read) {
         processor.access_reg(reg_idx) = handle_sign(*data);
 
@@ -660,18 +659,18 @@ private:
     });
   }
 
-protected:
+ protected:
   std::shared_ptr<Core::Future> internal_exec() {
     base_addr = processor.access_reg(base_reg_idx);
-    Core::clock->register_falling_edge_listener(
+    cpu_clock->register_falling_edge_listener(
         [=, &this]() { do_transfer(); });
 
     return exec_completion_future;
   }
 
-public:
+ public:
   const static bool is_parseable(uint32_t encoded_insn) override {
-    return // Full word or unsigned byte
+    return  // Full word or unsigned byte
         (((encoded_insn >> 25) & 0x03) == 0b010) ||
         (((encoded_insn >> 25) & 0x03) == 0b011 &&
          (((encoded_insn >> 4) & 0x01) == 0)) ||
@@ -775,14 +774,15 @@ public:
 
 public
 class SwapInsn {
-private:
+ private:
   int source_reg_idx;
   int dest_reg_idx;
   int base_reg_idx;
   Core::DataSize size;
 
-protected:
+ protected:
   std::shared_ptr<Core::Future> internal_exec() {
+    Core::Future ret;
     Core::BusRequest store_req;
     Core::BusRequest load_req;
 
@@ -792,7 +792,7 @@ protected:
     load_req.data = std::make_shared<uint64_t>();
     load_req.request_completion_future = std::make_shared<Core::Future>();
     load_req.bus_activity_future = std::make_shared<Core::Future>();
-    load_req.request_completeion_future->register_listener([=, &this]() {
+    load_req.request_completion_future->register_listener([=, &this]() {
       processor.access_reg(dest_reg_idx) = *data;
       load_req.bus_activity_future->make_available();
     });
@@ -801,7 +801,40 @@ protected:
     store_req.dir = Core::ReadWrite::write;
     store_req.size = size;
     store_req.data = std::make_shared<uint64_t>();
-    *data = processor.access_reg(
+    *data = processor.access_reg(source_reg_idx);
+    store_req.request_completion_future = std::make_shared<Core::Future>();
+    store_req.bus_activity_future = std::make_shared<Core::Future>();
+    exec_bus_activity_future = store_req.bus_activity_future;
+    store_req.request_completion_future->register_listener([=, &this]() {
+      ret->make_available();
+    });
+
+    std::queue<Core::BusRequest> swap_request;
+    swap_request.push(load_req);
+    swap_request.push(store_req);
+    processor.data_bus->request_multiple(swap_request); 
+
+    return ret;
   }
 
-} // namespace ARM
+ public:
+  const static bool is_parseable(uint32_t encoded_insn) override {
+    return ((encoded_insn >> 23) & 0x1F) == 0x002 &&
+           ((encoded_insn >> 20) & 0x03) == 0x00 &&
+           ((encoded_insn >> 4) & 0xFF) == 0x09;
+  }
+
+  SwapInsn(uint32_t encoded_insn) {
+    if ((encoded_insn >> 22) & 0x01) {
+      size = Core::DataSize::Byte;
+    } else {
+      size = Core::DataSize::DoubleWord;
+    }
+
+    source_reg_idx = encoded_insn & 0x0F;
+    dest_reg_idx = (encoded_insn >> 12) & 0x0F;
+    base_reg_idx = (encoded_insn >> 16) & 0x0F;
+  }
+};
+
+}  // namespace ARM

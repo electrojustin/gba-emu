@@ -177,7 +177,7 @@ std::shared_ptr<Core::Future> ARM7TDMI::fetch(
   Core::DataSize data_size =
       get_thumb() ? Core::DataSize::Word : Core::DataSize::DoubleWord;
   auto ret = instruction_bus->request(program_counter, Core::ReadWrite::read,
-                                      data_size, data, bus_activity_future);
+                                      data_size, data, bus_activity_future, cpu_clock);
 
   ret->add_listener((=, &this)[] {
     if (data_size == Core::DataSize::Word) {
@@ -218,16 +218,52 @@ void ARM7TDMI::flush_pipeline() {
     decoded_insn_buf = nullptr;
 }
 
+std::shared_ptr<Core::Future> ARM7TDMI::on_parent_falling_edge() {
+  std::shared_ptr<Core::Future> ret = Core::Future::immediate_future();
+
+  if (!wait) {
+    ret = cpu_clock->falling_edge();
+  }
+
+  parent_clock->register_rising_edge_listener(std::bind(ARM7TDMI::on_parent_rising_edge));
+
+  return ret;
+}
+
+std::shared_ptr<Core::Future> ARM7TDMI::on_parent_rising_edge() {
+  std::shared_ptr<Core::Future> ret = Core::Future::immediate_future();
+
+  if (!wait) {
+    ret = cpu_clock->rising_edge();
+  }
+
+  parent_clock->register_falling_edge_listener(std::bind(ARM7TDMI::on_parent_falling_edge));
+
+  return ret;
+}
+
+ARM7TDMI::ARM7TDMI(std::shared_ptr<Core::Clock> parent_clock) {
+  cpu_clock = std::make_shared<Core::Clock>();
+  this->parent_clock = parent_clock;
+
+  parent_clock->register_rising_edge_listener(std::bind(ARM7TDMI::on_parent_rising_edge));
+
+  reset();
+}
+
 void ARM7TDMI::interrupt(ARMInterruptType type) {
     this->interrupt_type = interrupt_type;
+    this->is_interrupting = true;
 }
 
 void ARM7TDMI::process_interrupt() {
-      // Change mode appropriately
-      switch (interrupt_type) {
+    // Change mode appropriately
+    switch (interrupt_type) {
       case ARMInterruptType::Reset:
-      case ARMInterruptType::Software this->set_mode(ARMMode::SVC); break;
-          case ARMInterruptType::UndefinedInsn:
+      case ARMInterruptType::Software:
+        this->set_mode(ARMMode::SVC); 
+        break;
+      case ARMInterruptType::UndefinedInsn:
         this->set_mode(ARMMode::Undef);
         break;
       case ARMInterruptType::PrefetchAbort:
@@ -243,28 +279,28 @@ void ARM7TDMI::process_interrupt() {
       default:
         log(LogLevel::fatal, "Invalid interrupt type!\n");
         break;
-      }
+    }
 
-      // Save return register
-      this->access_link() = this->access_pc();
+    // Save return register
+    this->access_link() = this->access_pc();
 
-      // Save CPSR
-      this->access_spsr() = this->cpsr;
+    // Save CPSR
+    this->access_spsr() = this->cpsr;
 
-      // Flush execution pipeline
-      this->flush_pipeline();
+    // Flush execution pipeline
+    this->flush_pipeline();
 
-      auto new_program_counter = std::make_shared<uint64_t>();
-      exec_bus_activity_future = std::make_shared<Core::Future>();
-      auto read_future = this->instruction_bus->request(
-          vtor + interrupt_type * 4, Core::ReadWrite::read,
-          Core::DataSize::DoubleWord, new_program_counter,
-          exec_bus_activity_future);
-      read_future->register_listener([=, &this]() {
-        is_interrupting = false;
-        this->access_pc() = *new_program_counter;
-        cycle();
-      });
+    auto new_program_counter = std::make_shared<uint64_t>();
+    exec_bus_activity_future = std::make_shared<Core::Future>();
+    auto read_future = this->instruction_bus->request(
+        vtor + interrupt_type * 4, Core::ReadWrite::read,
+        Core::DataSize::DoubleWord, new_program_counter,
+        exec_bus_activity_future, this->cpu_clock);
+    read_future->register_listener([=, &this]() {
+      is_interrupting = false;
+      this->access_pc() = *new_program_counter;
+      cycle();
+    });
 }
 
 void ARM7TDMI::reset() {
@@ -272,7 +308,7 @@ void ARM7TDMI::reset() {
   cpsr = 0;
   set_little_endian(true);
   vtor = 0;
-  wait_future = Core::Future::immediate_future();
+  program_counter = 0;
 }
 
 }  // namespace ARM
